@@ -16,7 +16,7 @@ A Claude Code skill that turns a project's development history into a course, so
 |---|---|
 | Audience | Any solo developer who builds fast but wants retention |
 | Scope | Solo only. No team features. |
-| Form factor | Claude Code skill that writes a static course. Markdown first, HTML site later. |
+| Form factor | Claude Code skill that writes a static course. Markdown first, HTML site later. Packaged as a Claude Code plugin, because a bare skill cannot ship hooks. |
 | Lifecycle | Backfill from past git history, then grow iteratively. Chapters written as code is written, or when prompted. |
 | Activation | Skill should be active from project start, to build context. |
 | Dogfooding | Build learning-curve with learning-curve. |
@@ -130,16 +130,17 @@ Status: proposed, not yet accepted. Ordering principle: each phase is usable on 
 **Goal:** capture decisions from day one. The skill must be active from project start, and decisions are the input every later phase consumes.
 
 In scope:
-- Repo skeleton: `SKILL.md`, `schemas/`, `validate.py`, `hooks/`, `tests/`, `pyproject.toml` (pydantic, pytest).
+- Plugin layout: `.claude-plugin/plugin.json`, `skills/learning-curve/SKILL.md`, `skills/decision/SKILL.md`, `hooks/hooks.json`, `learning_curve/` (Python package), `schemas/`, `tests/`, `pyproject.toml`. Scripts run via `uv run --project ${CLAUDE_PLUGIN_ROOT}`, so `uv` is a user requirement.
 - Pydantic `Decision` model + exported JSON schema, matching the §4 fields.
-- `validate.py`: validates Claude's JSON output before anything is written.
+- `learning_curve.validate`: validates Claude's JSON output before anything is written.
+- `learning_curve.transcript`: digest of a transcript — conversation text only, keyed by JSONL line for citations (1.6 MB transcript → 11 KB).
 - ADR writer: validated decision → `docs/decisions/NNNN-slug.md` (next free number, slugified title).
 - `SessionEnd` hook: preserves context, spends no tokens. It copies the transcript to `.course/transcripts/<session_id>.jsonl` and appends `{session_id, ended_at}` to `.course/staged/queue.jsonl`.
   - The copy matters because deferred extraction must not lose context: Claude Code deletes old transcripts (`cleanupPeriodDays`, default 30).
   - `.course/transcripts/` is gitignored: transcripts may contain secrets.
 - Deferred extraction (`SKILL.md`): the queue is drained in-session, the next time the skill runs or before any chapter is generated, whichever comes first. Claude extracts candidate decisions with transcript line refs, `validate.py` checks them, and the user confirms/edits/rejects. Only confirmed ones are written as ADRs.
 - `/decision` command: manual entry for decisions made outside transcripts.
-- pytest: model validation (good + bad payloads), ADR numbering/rendering, hook copy + queue append.
+- pytest: model validation (good + bad payloads), ADR numbering/rendering, hook copy + queue append, digest.
 
 Tradeoff: defer extraction rather than run `claude -p` in the hook. No hidden token spend at every session end, and several sessions can be extracted in one pass. Cost: candidates aren't ready until the next run, and the user confirms them with a less fresh memory. Upgrade trigger: confirmations become unreliable because too much time passes between session and review.
 
@@ -173,3 +174,5 @@ Gaps noticed while writing this. Not decided.
 11. **`/decision` command.** Proposed in §10: in, Phase 0.
 12. **HTML site.** What triggers moving from Markdown to HTML?
 13. **"Important" fixes/enhancements.** What makes a fix or enhancement important enough for a quiz? Where in the course does a fix/enhancement go — into the matching topic section of its chapter?
+14. **Draining trigger.** Nothing prompts the user to run the review, so the queue can sit unread. Candidate: a `SessionStart` hook that prints one line ("N sessions staged — run /learning-curve") when the queue is non-empty.
+15. **`/decision` citations.** Manual decisions can cite only the whole session (`<session_id>:L1`), not the exact line. `${CLAUDE_SESSION_ID}` substitution in skills is unverified.
