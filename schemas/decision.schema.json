@@ -1,0 +1,133 @@
+{
+  "$defs": {
+    "Option": {
+      "additionalProperties": false,
+      "description": "One alternative that was weighed before choosing.",
+      "properties": {
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "summary": {
+          "minLength": 1,
+          "title": "Summary",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "summary"
+      ],
+      "title": "Option",
+      "type": "object"
+    },
+    "Source": {
+      "additionalProperties": false,
+      "description": "Where the evidence for a decision lives.\n\n`kind` picks the format `ref` must have: a transcript line range, a pull\nrequest, or one or more commit SHAs (when the decision was inferred).",
+      "properties": {
+        "kind": {
+          "enum": [
+            "transcript",
+            "pr",
+            "inferred"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "ref": {
+          "minLength": 1,
+          "title": "Ref",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "ref"
+      ],
+      "title": "Source",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "One architecture decision record (ADR), validated before anything is written.\n\nClaude produces this as JSON, so the model is the trust boundary: nothing\nreaches disk unless it passes every rule below.",
+  "properties": {
+    "title": {
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+    },
+    "date": {
+      "format": "date",
+      "title": "Date",
+      "type": "string"
+    },
+    "status": {
+      "anyOf": [
+        {
+          "enum": [
+            "provisional",
+            "accepted"
+          ],
+          "type": "string"
+        },
+        {
+          "pattern": "^superseded-by-\\d{4}$",
+          "type": "string"
+        }
+      ],
+      "title": "Status"
+    },
+    "context": {
+      "minLength": 1,
+      "title": "Context",
+      "type": "string"
+    },
+    "options_considered": {
+      "items": {
+        "$ref": "#/$defs/Option"
+      },
+      "minItems": 2,
+      "title": "Options Considered",
+      "type": "array"
+    },
+    "chosen": {
+      "minLength": 1,
+      "title": "Chosen",
+      "type": "string"
+    },
+    "tradeoffs": {
+      "minLength": 1,
+      "title": "Tradeoffs",
+      "type": "string"
+    },
+    "upgrade_trigger": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Upgrade Trigger"
+    },
+    "source": {
+      "$ref": "#/$defs/Source"
+    }
+  },
+  "required": [
+    "title",
+    "date",
+    "status",
+    "context",
+    "options_considered",
+    "chosen",
+    "tradeoffs",
+    "source"
+  ],
+  "title": "Decision",
+  "type": "object"
+}
