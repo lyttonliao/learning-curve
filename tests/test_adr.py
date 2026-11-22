@@ -2,7 +2,9 @@ from pathlib import Path
 
 import pytest
 
-from learning_curve.adr import next_number, slugify
+from learning_curve.adr import next_number, render, slugify
+from learning_curve.models import Decision
+from tests.test_models import GOOD
 
 
 def touch(directory: Path, *names: str) -> None:
@@ -39,3 +41,32 @@ def test_non_adr_files_are_ignored(tmp_path: Path) -> None:
 )
 def test_slugify(title: str, slug: str) -> None:
     assert slugify(title) == slug
+
+
+DECISION = Decision.model_validate(GOOD)
+
+
+def test_render_frontmatter_and_sections() -> None:
+    text = render(DECISION, 3)
+    assert text.startswith(
+        '---\nnumber: 3\ntitle: "Use uv"\ndate: 2026-11-18\nstatus: "provisional"\n'
+    )
+    assert 'source: {kind: "transcript", ref: "abc-123:L12"}' in text
+    assert 'upgrade_trigger: "Revisit if uv install friction blocks users."' in text
+    assert "# 0003. Use uv" in text
+    assert "- **uv** (chosen): Fast, lockfile built in." in text
+    assert "- **pip**: Ubiquitous, no lockfile." in text
+    assert "## Upgrade trigger" in text
+
+
+def test_render_omits_trigger_when_absent() -> None:
+    payload = {**GOOD, "status": "accepted"}
+    del payload["upgrade_trigger"]
+    text = render(Decision.model_validate(payload), 1)
+    assert "upgrade_trigger" not in text
+    assert "## Upgrade trigger" not in text
+
+
+def test_render_quotes_hostile_title() -> None:
+    decision = Decision.model_validate({**GOOD, "title": 'Use uv: "fast"'})
+    assert 'title: "Use uv: \\"fast\\""' in render(decision, 1)
