@@ -11,6 +11,7 @@ from tests.test_models import GOOD
 
 
 def touch(directory: Path, *names: str) -> None:
+    """Create empty files called `names` in `directory`."""
     for name in names:
         (directory / name).touch()
 
@@ -92,6 +93,7 @@ def test_write_adr_numbers_after_existing(tmp_path: Path) -> None:
 def test_write_adr_never_overwrites(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     path = write_adr(DECISION, tmp_path)
     original = path.read_text(encoding="utf-8")
+    # next_number never returns a taken number, so force the collision a race would cause.
     monkeypatch.setattr("learning_curve.adr.next_number", lambda directory: 1)
     with pytest.raises(FileExistsError):
         write_adr(DECISION, tmp_path)
@@ -123,4 +125,5 @@ def test_main_invalid_input_writes_nothing(
     assert main([str(payload), "--root", str(tmp_path)]) == 1
     out: dict[str, Any] = json.loads(capsys.readouterr().out)
     assert out["errors"][0]["loc"] == ["title"]
+    # The exit code alone would pass even if docs/ were created before validation.
     assert not (tmp_path / "docs").exists()

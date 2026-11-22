@@ -7,6 +7,7 @@ from pydantic import ValidationError
 
 from learning_curve.models import Decision
 
+# JSON-ready error dicts: `type`, `loc`, `msg` (the shape Pydantic's errors() uses).
 Errors = Sequence[Mapping[str, object]]
 
 
