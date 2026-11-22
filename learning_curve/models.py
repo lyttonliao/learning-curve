@@ -13,12 +13,11 @@ class Strict(BaseModel):
 
 NonEmpty = Annotated[str, Field(min_length=1)]
 Status = (
-    Literal["provisional", "accepted"]
-    | Annotated[str, Field(pattern=r"^superseded-by-\d{4}$")]
+    Literal["provisional", "accepted"] | Annotated[str, Field(pattern=r"^superseded-by-\d{4}$")]
 )
 
 _REF_PATTERNS: dict[str, re.Pattern[str]] = {
-    "transcript": re.compile(r"[\w-]+:L\d+(?:-\d+)?"),
+    "transcript": re.compile(r"[\w-]+:L(\d+)(?:-(\d+))?"),
     "pr": re.compile(r"#\d+|https?://\S+"),
     "inferred": re.compile(r"[0-9a-fA-F]{4,40}(?:\s+[0-9a-fA-F]{4,40})*"),
 }
@@ -44,8 +43,11 @@ class Source(Strict):
     @model_validator(mode="after")
     def check_ref_matches_kind(self) -> Self:
         """Reject a `ref` whose format does not match `kind`."""
-        if not _REF_PATTERNS[self.kind].fullmatch(self.ref):
+        match = _REF_PATTERNS[self.kind].fullmatch(self.ref)
+        if not match:
             raise ValueError(f"ref {self.ref!r} is not a valid {self.kind} ref")
+        if self.kind == "transcript" and match[2] and int(match[2]) < int(match[1]):
+            raise ValueError(f"ref {self.ref!r} has its line range reversed")
         return self
 
 
@@ -78,4 +80,12 @@ class Decision(Strict):
         """Require `upgrade_trigger` when the decision is provisional."""
         if self.status == "provisional" and self.upgrade_trigger is None:
             raise ValueError("upgrade_trigger is required when status is provisional")
+        return self
+
+    @model_validator(mode="after")
+    def check_unique_option_names(self) -> Self:
+        """Reject two options with the same name (exact match like 'chosen')."""
+        names = [option.name for option in self.options_considered]
+        if len(names) != len(set(names)):
+            raise ValueError("options_considered has duplicate names")
         return self
