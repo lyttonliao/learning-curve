@@ -16,6 +16,10 @@ Status = (
     Literal["provisional", "accepted"] | Annotated[str, Field(pattern=r"^superseded-by-\d{4}$")]
 )
 
+# Matched with fullmatch, so each pattern must cover the whole ref.
+# transcript: `<session_id>:L<start>` or `<session_id>:L<start>-<end>`. Group 1 is the start
+# line, group 2 the end line (None for a single line). `(?:...)` keeps the optional range
+# from taking a group number of its own.
 _REF_PATTERNS: dict[str, re.Pattern[str]] = {
     "transcript": re.compile(r"[\w-]+:L(\d+)(?:-(\d+))?"),
     "pr": re.compile(r"#\d+|https?://\S+"),
@@ -42,7 +46,11 @@ class Source(Strict):
 
     @model_validator(mode="after")
     def check_ref_matches_kind(self) -> Self:
-        """Reject a `ref` whose format does not match `kind`."""
+        """Reject a `ref` whose format does not match `kind`.
+
+        A transcript range must not be reversed (`L30-12`); a one-line range
+        (`L12-12`) is allowed.
+        """
         match = _REF_PATTERNS[self.kind].fullmatch(self.ref)
         if not match:
             raise ValueError(f"ref {self.ref!r} is not a valid {self.kind} ref")

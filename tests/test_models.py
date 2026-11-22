@@ -22,6 +22,7 @@ GOOD: dict[str, Any] = {
 
 
 def test_good_payload_round_trips() -> None:
+    # mode="json" turns `date` into its ISO string; plain model_dump() keeps a `date` object.
     assert Decision.model_validate(GOOD).model_dump(mode="json") == GOOD
 
 
@@ -33,7 +34,7 @@ def test_no_trigger_needed_unless_provisional(status: str) -> None:
 
 
 def failing(payload: dict[str, Any]) -> list[tuple[tuple[int | str, ...], str]]:
-    """Validate `payload`, expect failure, return (loc, msg) for each error"""
+    """Validate `payload`, expect failure, return (loc, msg) for each error."""
     with pytest.raises(ValidationError) as exc:
         Decision.model_validate(payload)
     return [(e["loc"], e["msg"]) for e in exc.value.errors()]
@@ -97,6 +98,9 @@ def failing(payload: dict[str, Any]) -> list[tuple[tuple[int | str, ...], str]]:
     ],
 )
 def test_bad_payload_rejected(patch: dict[str, Any], loc: tuple[int | str, ...], msg: str) -> None:
+    # Field errors have a `loc` like ("title",); model_validator errors have loc == (),
+    # so those cases match on `msg` instead. `loc` is compared as a prefix because a union
+    # field like `status` appends the failing branch to it.
     errors = failing({**GOOD, **patch})
     assert any(e_loc[: len(loc)] == loc and msg in e_msg for e_loc, e_msg in errors)
 
