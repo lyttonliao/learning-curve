@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from learning_curve.adr import next_number, render, slugify
+from learning_curve.adr import next_number, render, slugify, write_adr
 from learning_curve.models import Decision
 from tests.test_models import GOOD
 
@@ -70,3 +70,24 @@ def test_render_omits_trigger_when_absent() -> None:
 def test_render_quotes_hostile_title() -> None:
     decision = Decision.model_validate({**GOOD, "title": 'Use uv: "fast"'})
     assert 'title: "Use uv: \\"fast\\""' in render(decision, 1)
+
+
+def test_write_adr_creates_numbered_file(tmp_path: Path) -> None:
+    path = write_adr(DECISION, tmp_path)
+    assert path == tmp_path / "docs" / "decisions" / "0001-use-uv.md"
+    assert path.read_text(encoding="utf-8") == render(DECISION, 1)
+
+
+def test_write_adr_numbers_after_existing(tmp_path: Path) -> None:
+    write_adr(DECISION, tmp_path)
+    second = write_adr(Decision.model_validate({**GOOD, "title": "Use ruff"}), tmp_path)
+    assert second.name == "0002-use-ruff.md"
+
+
+def test_write_adr_never_overwrites(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    path = write_adr(DECISION, tmp_path)
+    original = path.read_text(encoding="utf-8")
+    monkeypatch.setattr("learning_curve.adr.next_number", lambda directory: 1)
+    with pytest.raises(FileExistsError):
+        write_adr(DECISION, tmp_path)
+    assert path.read_text(encoding="utf-8") == original

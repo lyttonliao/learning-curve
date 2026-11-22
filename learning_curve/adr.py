@@ -83,3 +83,21 @@ def render(decision: Decision, number: int) -> str:
     if decision.upgrade_trigger is not None:
         body += ["## Upgrade trigger", "", decision.upgrade_trigger, ""]
     return "\n".join([*front, "", *body])
+
+
+def write_adr(decision: Decision, root: Path) -> Path:
+    """
+        Write `decision` to `<root>/docs/decisions/NNNN-slug.md` and return the path.
+
+        Opens the file in exclusive-create mode, so an existing file raises `FileExistsError`
+        instead of being overwritten.
+    """
+    directory = root / "docs" / "decisions"
+    directory.mkdir(parents=True, exist_ok=True)
+    number = next_number(directory)
+    path = directory / f"{number:04d}-{slugify(decision.title)}.md"
+    # shortcut: two concurrent writers with different titles can both pick the same number;
+    # fine for a single-user CLI, upgrade with a lock or a retry if that changes
+    with path.open("x", encoding="utf-8") as f:
+        f.write(render(decision, number))
+    return path
