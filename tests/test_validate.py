@@ -23,8 +23,7 @@ def test_schema_flag(capsys: pytest.CaptureFixture[str]) -> None:
 
 
 def test_valid_file_prints_normalized_json(
-    tmp_path: Path,
-    capsys: pytest.CaptureFixture[str]
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     path = tmp_path / "decision.json"
     path.write_text(json.dumps(GOOD))
@@ -33,19 +32,14 @@ def test_valid_file_prints_normalized_json(
     assert out == GOOD
 
 
-def test_valid_stdin(
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_valid_stdin(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps(GOOD)))
     code, out = run([], capsys)
     assert code == 0
     assert out == GOOD
 
 
-def test_invalid_payload_reports_field(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_invalid_payload_reports_field(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     path = tmp_path / "decision.json"
     path.write_text(json.dumps({**GOOD, "title": "   "}))
     code, out = run([str(path)], capsys)
@@ -55,12 +49,13 @@ def test_invalid_payload_reports_field(
 
 SCHEMA_FILE = Path(__file__).parent.parent / "schemas" / "decision.schema.json"
 
+
 @pytest.mark.parametrize(
     ("content", "error_type"),
     [
         (b"{", "json_invalid"),
-        (b"\xff\xfe", "io_error"), # not UTF-8
-        (None, "io_error"), # file never created
+        (b"\xff\xfe", "io_error"),  # not UTF-8
+        (None, "io_error"),  # file never created
     ],
 )
 def test_unreadable_input(
