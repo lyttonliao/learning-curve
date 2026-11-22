@@ -1,7 +1,11 @@
+import argparse
 import json
 import re
+import sys
+from collections.abc import Sequence
 from pathlib import Path
 
+from learning_curve.cli import fail, load_decision
 from learning_curve.models import Decision
 
 _ADR_NAME = re.compile(r"(\d{4})-.+\.md")
@@ -11,9 +15,9 @@ _SLUG_MAX = 60
 
 def next_number(directory: Path) -> int:
     """
-        Return the highest `NNNN-*.md` number in `directory plus 1.
-        Gaps are allowed and other files are ignored. A missing directory counts 
-        as empty, so the first ADR is 1.
+    Return the highest `NNNN-*.md` number in `directory` plus 1.
+    Gaps are allowed and other files are ignored. A missing directory counts
+    as empty, so the first ADR is 1.
     """
     if not directory.is_dir():
         return 1
@@ -23,28 +27,28 @@ def next_number(directory: Path) -> int:
 
 def slugify(title: str) -> str:
     """
-        Turn a title into a lowercase, hyphen-separated filename slug (max 60 chars)
+    Turn a title into a lowercase, hyphen-separated filename slug (max 60 chars)
 
-        Falls back to "decision" when nothing usable is left, e.g. for "!!!".
+    Falls back to "decision" when nothing usable is left, e.g. for "!!!".
     """
-    # shortcut: ASCII only, so accented letters are dropped; ugprade if non-English titles matter.
+    # shortcut: ASCII only, so accented letters are dropped; upgrade if non-English titles matter.
     slug = _NON_ALNUM.sub("-", title.lower()).strip("-")[:_SLUG_MAX].strip("-")
     return slug or "decision"
 
 
 def _q(text: str) -> str:
     """
-        Quote `text` as a YAML double-quoted scalar (a JSON string is valid YAML)
+    Quote `text` as a YAML double-quoted scalar (a JSON string is valid YAML)
     """
     return json.dumps(text, ensure_ascii=False)
 
 
 def render(decision: Decision, number: int) -> str:
     """
-        Render `decision` as a Markdown ADR with YAML frontmatter.
+    Render `decision` as a Markdown ADR with YAML frontmatter.
 
-        Every frontmatter string goes through `_q`, so characters like `:` or `:` in a title
-        cannot break the YAML. The upgrade trigger is omitted when absent.
+    Every frontmatter string goes through `_q`, so characters like `:` or `"` in a title
+    cannot break the YAML. The upgrade trigger is omitted when absent.
     """
     front = [
         "---",
@@ -67,7 +71,9 @@ def render(decision: Decision, number: int) -> str:
         "",
         "## Context",
         "",
-        "## Options Considered",
+        decision.context,
+        "",
+        "## Options considered",
         "",
         *options,
         "",
@@ -87,10 +93,10 @@ def render(decision: Decision, number: int) -> str:
 
 def write_adr(decision: Decision, root: Path) -> Path:
     """
-        Write `decision` to `<root>/docs/decisions/NNNN-slug.md` and return the path.
+    Write `decision` to `<root>/docs/decisions/NNNN-slug.md` and return the path.
 
-        Opens the file in exclusive-create mode, so an existing file raises `FileExistsError`
-        instead of being overwritten.
+    Opens the file in exclusive-create mode, so an existing file raises `FileExistsError`
+    instead of being overwritten.
     """
     directory = root / "docs" / "decisions"
     directory.mkdir(parents=True, exist_ok=True)
@@ -101,3 +107,32 @@ def write_adr(decision: Decision, root: Path) -> Path:
     with path.open("x", encoding="utf-8") as f:
         f.write(render(decision, number))
     return path
+
+
+def main(argv: Sequence[str]) -> int:
+    """
+    Write one Decision JSON payload as an ADR and print the path.
+
+    Reads the payload from the file in `argv`, or from stdin.
+    Valid: prints the written path, returns 0.
+    Invalid or unwritable: prints errors as JSON, returns 1.
+    """
+    parser = argparse.ArgumentParser(description="Write a Decision JSON payload as an ADR.")
+    parser.add_argument("file", nargs="?", help="JSON file; reads stdin if omitted")
+    parser.add_argument("--root", type=Path, default=Path.cwd(), help="project root")
+    args = parser.parse_args(argv)
+
+    result = load_decision(args.file)
+    if not isinstance(result, Decision):
+        return fail(result)
+    try:
+        path = write_adr(result, args.root)
+    except OSError as e:  # includes FileExistsError
+        return fail([{"type": "io_error", "loc": [], "msg": str(e)}])
+
+    print(path)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
