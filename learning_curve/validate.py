@@ -1,18 +1,10 @@
 import argparse
 import json
 import sys
-from collections.abc import Mapping, Sequence
-from pathlib import Path
+from collections.abc import Sequence
 
-from pydantic import ValidationError
-
+from learning_curve.cli import fail, load_decision
 from learning_curve.models import Decision
-
-
-def _fail(errors: Sequence[Mapping[str, object]]) -> int:
-    """Print `errors` as JSON under an "errors" key and return exit code 1."""
-    print(json.dumps({"errors": errors}, indent=2))
-    return 1
 
 
 def main(argv: Sequence[str]) -> int:
@@ -36,21 +28,10 @@ def main(argv: Sequence[str]) -> int:
         print(json.dumps(Decision.model_json_schema(), indent=2))
         return 0
 
-    try:
-        if args.file:
-            text = Path(args.file).read_text(encoding="utf-8")
-        else:
-            text = sys.stdin.read()
-        decision = Decision.model_validate(json.loads(text))
-    except (OSError, UnicodeDecodeError) as e:
-        return _fail([{"type": "io_error", "loc": [], "msg": str(e)}])
-    except json.JSONDecodeError as e:
-        return _fail([{"type": "json_invalid", "loc": [], "msg": str(e)}])
-    except ValidationError as e:
-        # include_context=False: ctx can hold exception objects json.dumps rejects.
-        return _fail(e.errors(include_url=False, include_context=False))
-
-    print(decision.model_dump_json(indent=2))
+    result = load_decision(args.file)
+    if not isinstance(result, Decision):
+        return fail(result)
+    print(result.model_dump_json(indent=2))
     return 0
 
 
