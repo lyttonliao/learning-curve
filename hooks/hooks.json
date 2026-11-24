@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "PYTHONPATH=\"${CLAUDE_PLUGIN_ROOT}\" uv run -q --project \"${CLAUDE_PLUGIN_ROOT}\" python -m learning_curve.course session-end",
+            "command": "LOG=\"$HOME/.learning-curve/hook.log\"; mkdir -p \"$HOME/.learning-curve\" && PYTHONPATH=\"${CLAUDE_PLUGIN_ROOT}\" uv run -q --project \"${CLAUDE_PLUGIN_ROOT}\" python -m learning_curve.course session-end 2>>\"$LOG\" || { rc=$?; echo \"$(date -u +%FT%TZ) learning-curve: hook command exited $rc\" >> \"$LOG\"; }",
             "timeout": 10
           }
         ]

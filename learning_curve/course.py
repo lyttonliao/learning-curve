@@ -88,7 +88,11 @@ def main(argv: Sequence[str]) -> None:
         try:
             session_end(json.load(sys.stdin))
         except Exception as e:  # deliberate catch-all: see the fail-open comment above
-            print(f"learning-curve: session-end failed: {e}", file=sys.stderr)
+            stamp = dt.datetime.now(dt.UTC).isoformat()
+            print(
+                f"{stamp} learning-curve: session-end failed: {type(e).__name__}: {e}",
+                file=sys.stderr,
+            )
         return
     if args.command == "init":
         init(args.root)

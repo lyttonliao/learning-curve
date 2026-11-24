@@ -90,7 +90,7 @@ PYTHONPATH=. uv run python -m learning_curve.course --root path/to/project init
 ## Known issues
 
 - **Packaging:** `pyproject.toml` has no `[build-system]`, so the package is not installed. `python -m learning_curve.<module>` fails with `ModuleNotFoundError` unless `PYTHONPATH` points at the repo root. `uv run --project <dir>` does not fix this. The hook command and the skills must set `PYTHONPATH="${CLAUDE_PLUGIN_ROOT}"`, or the project must gain a build system.
-- **Silent hook failures:** because `session-end` fails open and only writes to stderr, a broken hook is easy to miss. A `ModuleNotFoundError` from the packaging issue above happens before `main` runs, so even the fail-open handler cannot report it.
+- **Hook failures are logged outside the project:** the `SessionEnd` command appends all stderr to `~/.learning-curve/hook.log`, and a non-zero exit status as `hook command exited <code>`. This captures failures before `main` runs (`ModuleNotFoundError`, `uv: command not found`), which a Python-side log cannot. A run for a project that never ran `init` is a silent no-op by design and logs nothing. Not covered: a hook killed by its 10 s timeout, and `$HOME` being unwritable (then the command never runs). Logs from all projects share one file and grow without rotation.
 - **Refs are format-checked only:** `Source.ref` is matched against a pattern. Nothing checks that the commit, PR or transcript line exists.
 - **Queue rewrite is not atomic:** `done` rewrites `queue.jsonl` in place. A crash mid-write loses the queue. Acceptable while transcripts stay on disk.
 

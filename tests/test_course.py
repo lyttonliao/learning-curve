@@ -1,5 +1,6 @@
 import io
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -99,7 +100,9 @@ def test_main_session_end_fails_open_on_missing_transcript(
     payload = {"session_id": "s1", "transcript_path": str(tmp_path / "nope"), "cwd": str(tmp_path)}
     monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps(payload)))
     main(["session-end"])  # must not raise
-    assert "session-end failed" in capsys.readouterr().err
+    err = capsys.readouterr().err
+    # ISO timestamp, then the exception type, so the log line is self-explanatory.
+    assert re.match(r"\d{4}-\d\d-\d\dT.* session-end failed: FileNotFoundError:", err)
     assert pending(tmp_path) == []
 
 
