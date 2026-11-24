@@ -13,6 +13,7 @@ def make_session(root: Path, session_id: str = "s1", text: str = "{}\n") -> dict
     transcript.write_text(text, encoding="utf-8")
     return {"session_id": session_id, "transcript_path": str(transcript), "cwd": str(root)}
 
+
 def queue_lines(root: Path) -> list[dict[str, str]]:
     text = (root / ".course" / "staged" / "queue.jsonl").read_text(encoding="utf-8")
     return [json.loads(line) for line in text.splitlines()]
