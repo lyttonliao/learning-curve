@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "PYTHONPATH=\"${CLAUDE_PLUGIN_ROOT}\" uv run -q --project \"${CLAUDE_PLUGIN_ROOT}\" python -m learning_curve.course session-end",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
