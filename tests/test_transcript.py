@@ -63,3 +63,15 @@ def test_digest_drops_compaction_summary(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     assert digest(f) == "L2 user: why dict?"
+
+
+def test_digest_strips_inline_reminders(tmp_path: Path) -> None:
+    f = tmp_path / "t.jsonl"
+    f.write_text(
+        '{"type": "user", "message": {"content": '
+        '"why dict?\\n<system-reminder>\\nnoise\\n</system-reminder>"}}\n'
+        '{"type": "user", "message": {"content": '
+        '"<system-reminder>only noise</system-reminder>"}}\n',
+        encoding="utf-8",
+    )
+    assert digest(f) == "L1 user: why dict?"

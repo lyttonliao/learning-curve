@@ -1,4 +1,5 @@
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -6,10 +7,9 @@ from typing import Any
 _NOISE_PREFIXES = (
     "<command-name>",
     "<local-command",
-    "<system-reminder>",
-    "This session is being continued", # compaction summary
 )
 _MAX_ENTRY = 2000
+_REMINDER = re.compile(r"<system-reminder>.*?</system-reminder>", re.DOTALL)
 
 
 def _text(content: str | list[dict[str, Any]]) -> str:
@@ -51,7 +51,7 @@ def digest(path: Path) -> str:
                 or entry.get("isCompactSummary")
             ):
                 continue
-            text = _text(entry["message"]["content"]).strip()
+            text = _REMINDER.sub("", _text(entry["message"]["content"])).strip()
             if text and not text.startswith(_NOISE_PREFIXES): # tool-only turns have no text blocks
                 out.append(f"L{n} {entry['type']}: {_clip(text)}")
     return "\n\n".join(out)
