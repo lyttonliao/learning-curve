@@ -97,3 +97,21 @@ class Decision(Strict):
         if len(names) != len(set(names)):
             raise ValueError("options_considered has duplicate names")
         return self
+
+
+class Concept(Strict):
+    """One thing learned along the way, validated before it is written.
+    
+    Quizzes and prose are generated from these, never from raw transcripts.
+    """
+
+    title: NonEmpty
+    kind: Literal["concept", "tradeoff", "debug"]
+    explanation: Annotated[str, Field(min_length=1, max_length=600)]
+    why_it_came_up: NonEmpty
+    importance: Literal[1, 2, 3]
+    session_id: NonEmpty
+    sources: Annotated[list[Source], Field(min_length=1)]
+    alternatives: list[Option] = Field(default_factory=list)
+    misconception: NonEmpty | None = None
+    tags: list[NonEmpty] = Field(default_factory=list)

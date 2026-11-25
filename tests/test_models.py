@@ -3,7 +3,7 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
-from learning_curve.models import Decision, Source
+from learning_curve.models import Concept, Decision, Source
 
 GOOD: dict[str, Any] = {
     "title": "Use uv",
@@ -147,3 +147,20 @@ def test_source_reversed_range_rejected() -> None:
 def test_source_unknown_kind_rejected() -> None:
     with pytest.raises(ValidationError, match="kind"):
         Source.model_validate({"kind": "bogus", "ref": "x"})
+
+
+CONCEPT_GOOD: dict[str, Any] = {
+    "title": "Lazy versus greedy regex",
+    "kind": "concept",
+    "explanation": "`.*?` stops at the first closing tag; `.*` runs to the last one.",
+    "why_it_came_up": "Stripping system-reminder blocks from the digest.",
+    "importance": 2,
+    "session_id": "abc-123",
+    "sources": [{"kind": "transcript", "ref": "abc-123:L40-48"}],
+    "alternatives": [],
+    "misconception": "Thought `.*` needed a match, so empty blocks would fail.",
+    "tags": ["regex"],   
+}
+
+def test_concept_round_trips() -> None:
+    assert Concept.model_validate(CONCEPT_GOOD).model_dump(mode="json") == CONCEPT_GOOD
