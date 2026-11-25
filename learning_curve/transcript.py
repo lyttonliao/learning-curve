@@ -3,7 +3,12 @@ import sys
 from pathlib import Path
 from typing import Any
 
-_NOISE_PREFIXES = ("<command-name>", "<local-command", "<system-reminder>")
+_NOISE_PREFIXES = (
+    "<command-name>",
+    "<local-command",
+    "<system-reminder>",
+    "This session is being continued", # compaction summary
+)
 _MAX_ENTRY = 2000
 
 
@@ -40,7 +45,11 @@ def digest(path: Path) -> str:
             # upgrade to a stderr warning with the line number if that ever bites.
             except json.JSONDecodeError:
                 continue # partly written last line
-            if entry.get("type") not in ("user", "assistant") or entry.get("isMeta"):
+            if (
+                entry.get("type") not in ("user", "assistant") 
+                or entry.get("isMeta")
+                or entry.get("isCompactSummary")
+            ):
                 continue
             text = _text(entry["message"]["content"]).strip()
             if text and not text.startswith(_NOISE_PREFIXES): # tool-only turns have no text blocks

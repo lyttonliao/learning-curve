@@ -53,3 +53,13 @@ def test_digest_skips_malformed_lines(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     assert digest(f) == "L1 user: hi"
+
+
+def test_digest_drops_compaction_summary(tmp_path: Path) -> None:
+    f = tmp_path / "t.jsonl"
+    f.write_text(
+        '{"type": "user", "isCompactSummary": true, "message": {"content": "summary"}}\n'
+        '{"type": "user", "message": {"content": "why dict?"}}\n',
+        encoding="utf-8",
+    )
+    assert digest(f) == "L2 user: why dict?"
