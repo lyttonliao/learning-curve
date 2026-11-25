@@ -1,9 +1,11 @@
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
 _NOISE_PREFIXES = ("<command-name>", "<local-command", "<system-reminder>")
 _MAX_ENTRY = 2000
+
 
 def _text(content: str | list[dict[str, Any]]) -> str:
     """Plain text of a message: a string as-is, or its `text` blocks joined by newlines."""
@@ -39,3 +41,12 @@ def digest(path: Path) -> str:
             if text and not text.startswith(_NOISE_PREFIXES): # tool-only turns have no text blocks
                 out.append(f"L{n} {entry['type']}: {_clip(text)}")
     return "\n\n".join(out)
+
+
+def main(argv: list[str]) -> None:
+    """Print the digest of the transcript file named by argv[0]."""
+    print(digest(Path(argv[0])))
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])
