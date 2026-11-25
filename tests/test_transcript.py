@@ -75,3 +75,29 @@ def test_digest_strips_inline_reminders(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     assert digest(f) == "L1 user: why dict?"
+
+
+def test_digest_every_entry_type(tmp_path: Path) -> None:
+    entries = [
+        {"type": "attachment"},
+        {"type": "user", "message": {"content": "why dict?"}},
+        {
+            "type": "assistant",
+            "message": {
+                "content": [
+                    {"type": "thinking", "thinking": "hmm"},
+                    {"type": "text", "text": "O(1) lookup"},
+                    {"type": "tool_use", "name": "Read", "input": {}},
+                ]
+            },
+        },
+        {"type": "user", "message": {"content": [{"type": "tool_result", "content": "x"}]}},
+        {"type": "user", "isMeta": True, "message": {"content": "meta"}},
+        {"type": "user", "isCompactSummary": True, "message": {"content": "summary"}},
+        {"type": "user", "message": {"content": "<command-name>/clear</command-name>"}},
+    ]
+    last = {"type": "assistant", "message": {"content": "ok<system-reminder>x</system-reminder>"}}
+    raw = [json.dumps(e) for e in entries] + ["{not json", "", json.dumps(last)]
+    f = tmp_path / "t.jsonl"
+    f.write_text("\n".join(raw), encoding="utf-8")
+    assert digest(f) == "L2 user: why dict?\n\nL3 assistant: O(1) lookup\n\nL10 assistant: ok"
