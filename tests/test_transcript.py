@@ -44,3 +44,12 @@ def test_digest_drops_command_wrappers(tmp_path: Path) -> None:
 def test_clip_marks_what_was_cut() -> None:
     assert _clip("a" * 2000) == "a" * 2000
     assert _clip("a" * 2005).endswith("[...cut 5 chars]")
+
+
+def test_digest_skips_malformed_lines(tmp_path: Path) -> None:
+    f = tmp_path / "t.jsonl"
+    f.write_text(
+        '{"type": "user", "message": {"content": "hi"}}\n{"type": "user", "mess',
+        encoding="utf-8",
+    )
+    assert digest(f) == "L1 user: hi"

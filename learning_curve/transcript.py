@@ -34,7 +34,12 @@ def digest(path: Path) -> str:
         for n, line in enumerate(f, start=1): # count before skipping: n must stay raw
             if not line.strip():
                 continue
-            entry = json.loads(line)
+            try:
+                entry = json.loads(line)
+            # shortcut: silent skip, a corrupt mid-file line loses one entry unnoticed;
+            # upgrade to a stderr warning with the line number if that ever bites.
+            except json.JSONDecodeError:
+                continue # partly written last line
             if entry.get("type") not in ("user", "assistant") or entry.get("isMeta"):
                 continue
             text = _text(entry["message"]["content"]).strip()
