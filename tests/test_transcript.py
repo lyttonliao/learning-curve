@@ -41,9 +41,10 @@ def test_digest_drops_command_wrappers(tmp_path: Path) -> None:
     assert digest(f) == "L2 user: real question"
 
 
-def test_clip_marks_what_was_cut() -> None:
-    assert _clip("a" * 2000) == "a" * 2000
-    assert _clip("a" * 2005).endswith("[...cut 5 chars]")
+def test_clip_keeps_head_and_tail() -> None:
+    assert _clip("a" * 8000) == "a" * 8000
+    text = "h" * 4000 + "m" * 5 + "t" * 4000
+    assert _clip(text) == "h" * 4000 + " [...cut 5 chars...] " + "t" * 4000
 
 
 def test_digest_skips_malformed_lines(tmp_path: Path) -> None:

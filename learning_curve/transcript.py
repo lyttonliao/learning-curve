@@ -8,7 +8,8 @@ _NOISE_PREFIXES = (
     "<command-name>",
     "<local-command",
 )
-_MAX_ENTRY = 2000
+# Guard against pasted logs, not a budget: no entry in 4 real sessions exceeded 7,500 chars.
+_MAX_ENTRY = 8000
 _REMINDER = re.compile(r"<system-reminder>.*?</system-reminder>", re.DOTALL)
 
 
@@ -20,12 +21,15 @@ def _text(content: str | list[dict[str, Any]]) -> str:
 
 
 def _clip(text: str) -> str:
-    """Cut `text` to _MAX_ENTRY chars and say how many were dropped."""
-    # shortcut: keeps the head only, so a conclusion at the end of a long message is lost;
-    # upgrade to head+tail if extraction misses decisions stated at the end.
+    """Keep the head and tail of `text` past _MAX_ENTRY chars and mark the cut in the middle.
+
+    Head and tail, because a long message usually opens with context and ends with its
+    conclusion.
+    """
     if len(text) <= _MAX_ENTRY:
         return text
-    return f"{text[:_MAX_ENTRY]} [...cut {len(text) - _MAX_ENTRY} chars]"
+    half = _MAX_ENTRY // 2
+    return f"{text[:half]} [...cut {len(text) - _MAX_ENTRY} chars...] {text[-half:]}"
 
 
 def digest(path: Path) -> str:
