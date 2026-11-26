@@ -39,7 +39,7 @@ def slugify(title: str) -> str:
     return slug or "decision"
 
 
-def _q(text: str) -> str:
+def yaml_str(text: str) -> str:
     """Quote `text` as a YAML double-quoted scalar (a JSON string is valid YAML)."""
     return json.dumps(text, ensure_ascii=False)
 
@@ -47,20 +47,20 @@ def _q(text: str) -> str:
 def render(decision: Decision, number: int) -> str:
     """Render `decision` as a Markdown ADR with YAML frontmatter.
 
-    Every frontmatter string goes through `_q`, so characters like `:` or `"` in a title
+    Every frontmatter string goes through `yaml_str`, so characters like `:` or `"` in a title
     cannot break the YAML. The upgrade trigger is omitted when absent.
     """
     front = [
         "---",
         f"number: {number}",
-        f"title: {_q(decision.title)}",
+        f"title: {yaml_str(decision.title)}",
         f"date: {decision.date.isoformat()}",
-        f"status: {_q(decision.status)}",
+        f"status: {yaml_str(decision.status)}",
         # Single-line YAML mapping; the doubled braces are literal braces in the f-string.
-        f"source: {{kind: {_q(decision.source.kind)}, ref: {_q(decision.source.ref)}}}",
+        f"source: {{kind: {yaml_str(decision.source.kind)}, ref: {yaml_str(decision.source.ref)}}}",
     ]
     if decision.upgrade_trigger is not None:
-        front.append(f"upgrade_trigger: {_q(decision.upgrade_trigger)}")
+        front.append(f"upgrade_trigger: {yaml_str(decision.upgrade_trigger)}")
     front.append("---")
 
     options = [

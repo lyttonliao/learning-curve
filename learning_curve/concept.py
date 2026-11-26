@@ -1,24 +1,26 @@
 from pathlib import Path
 
-from learning_curve.adr import _q, slugify
+from learning_curve.adr import slugify, yaml_str
 from learning_curve.models import Concept
 
 
 def render_concept(concept: Concept) -> str:
     """Render `concept` as a Markdown note with YAML frontmatter.
 
-    Frontmatter strings go through `_q`, like the ADR renderer, so `:` or `"` in a title
+    Frontmatter strings go through `yaml_str`, like the ADR renderer, so `:` or `"` in a title
     cannot breka the YAML. Misconception and alternatives are omitted when absent.
     """
-    sources = ", ".join(f"{{kind: {_q(s.kind)}, ref: {_q(s.ref)}}}" for s in concept.sources)
+    sources = ", ".join(
+        f"{{kind: {yaml_str(s.kind)}, ref: {yaml_str(s.ref)}}}" for s in concept.sources
+    )
     front = [
         "---",
-        f"title: {_q(concept.title)}",
-        f"kind: {_q(concept.kind)}",
+        f"title: {yaml_str(concept.title)}",
+        f"kind: {yaml_str(concept.kind)}",
         f"importance: {concept.importance}",
-        f"session_id: {_q(concept.session_id)}",
+        f"session_id: {yaml_str(concept.session_id)}",
         f"sources: [{sources}]",
-        f"tags: [{', '.join(_q(t) for t in concept.tags)}]",
+        f"tags: [{', '.join(yaml_str(t) for t in concept.tags)}]",
         "---",
     ]
     body = [
