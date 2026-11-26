@@ -164,3 +164,18 @@ CONCEPT_GOOD: dict[str, Any] = {
 
 def test_concept_round_trips() -> None:
     assert Concept.model_validate(CONCEPT_GOOD).model_dump(mode="json") == CONCEPT_GOOD
+
+
+@pytest.mark.parametrize(
+    ("patch", "loc"),
+    [
+        ({"importance": 4}, ("importance",)),
+        ({"kind": "idea"}, ("kind",)),
+        ({"sources": []}, ("sources",)),
+        ({"explanation": "x" * 601}, ("explanation",)),
+    ],
+)
+def test_concept_rejects(patch: dict[str, Any], loc: tuple[str, ...]) -> None:
+    with pytest.raises(ValidationError) as exc:
+        Concept.model_validate({**CONCEPT_GOOD, **patch})
+    assert[e["loc"] for e in exc.value.errors()] == [loc]
