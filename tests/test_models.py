@@ -159,8 +159,9 @@ CONCEPT_GOOD: dict[str, Any] = {
     "sources": [{"kind": "transcript", "ref": "abc-123:L40-48"}],
     "alternatives": [],
     "misconception": "Thought `.*` needed a match, so empty blocks would fail.",
-    "tags": ["regex"],   
+    "tags": ["regex"],
 }
+
 
 def test_concept_round_trips() -> None:
     assert Concept.model_validate(CONCEPT_GOOD).model_dump(mode="json") == CONCEPT_GOOD
@@ -178,4 +179,4 @@ def test_concept_round_trips() -> None:
 def test_concept_rejects(patch: dict[str, Any], loc: tuple[str, ...]) -> None:
     with pytest.raises(ValidationError) as exc:
         Concept.model_validate({**CONCEPT_GOOD, **patch})
-    assert[e["loc"] for e in exc.value.errors()] == [loc]
+    assert [e["loc"] for e in exc.value.errors()] == [loc]

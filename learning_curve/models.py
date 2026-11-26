@@ -101,7 +101,7 @@ class Decision(Strict):
 
 class Concept(Strict):
     """One thing learned along the way, validated before it is written.
-    
+
     Quizzes and prose are generated from these, never from raw transcripts.
     """
 

@@ -30,13 +30,13 @@ def _clip(text: str) -> str:
 
 def digest(path: Path) -> str:
     """One `L<n> <role>: <text>` entry per conversation message; n is the raw file line.
-    
+
     Entries are joined by a blank line, but message text can contain blank lines too, so split
     only on `\\n\\n(?=L\\d+ (?:user|assistant): )`.
     """
     out = []
     with path.open(encoding="utf-8") as f:
-        for n, line in enumerate(f, start=1): # count before skipping: n must stay raw
+        for n, line in enumerate(f, start=1):  # count before skipping: n must stay raw
             if not line.strip():
                 continue
             try:
@@ -44,15 +44,15 @@ def digest(path: Path) -> str:
             # shortcut: silent skip, a corrupt mid-file line loses one entry unnoticed;
             # upgrade to a stderr warning with the line number if that ever bites.
             except json.JSONDecodeError:
-                continue # partly written last line
+                continue  # partly written last line
             if (
-                entry.get("type") not in ("user", "assistant") 
+                entry.get("type") not in ("user", "assistant")
                 or entry.get("isMeta")
                 or entry.get("isCompactSummary")
             ):
                 continue
             text = _REMINDER.sub("", _text(entry["message"]["content"])).strip()
-            if text and not text.startswith(_NOISE_PREFIXES): # tool-only turns have no text blocks
+            if text and not text.startswith(_NOISE_PREFIXES):  # tool-only turns have no text blocks
                 out.append(f"L{n} {entry['type']}: {_clip(text)}")
     return "\n\n".join(out)
 

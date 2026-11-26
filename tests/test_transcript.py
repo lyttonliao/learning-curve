@@ -13,7 +13,7 @@ def test_text_keeps_only_text_blocks() -> None:
         {"type": "thinking", "thinking": "hmm"},
         {"type": "text", "text": "a"},
         {"type": "tool_use", "name": "Bash"},
-        {"type": "text", "text": "b"}
+        {"type": "text", "text": "b"},
     ]
     assert _text(blocks) == "a\nb"
 
