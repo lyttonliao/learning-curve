@@ -11,3 +11,11 @@ def test_render_concept() -> None:
     assert 'sources: [{kind: "transcript", ref: "abc-123:L40-48"}]' in out
     assert "## Misconception" in out
     assert "## Alternatives" not in out
+
+
+def test_render_concept_lists_alternatives() -> None:
+    payload = {
+        **CONCEPT_GOOD,
+        "alternatives": [{"name": "greedy", "summary": "runs to the last tag"}]
+    }
+    assert "- **greedy**: runs to the last tag" in render_concept(Concept.model_validate(payload))
