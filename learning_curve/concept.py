@@ -8,7 +8,7 @@ def render_concept(concept: Concept) -> str:
     """Render `concept` as a Markdown note with YAML frontmatter.
 
     Frontmatter strings go through `yaml_str`, like the ADR renderer, so `:` or `"` in a title
-    cannot breka the YAML. Misconception and alternatives are omitted when absent.
+    cannot break the YAML. Misconception and alternatives are omitted when absent.
     """
     sources = ", ".join(
         f"{{kind: {yaml_str(s.kind)}, ref: {yaml_str(s.ref)}}}" for s in concept.sources
@@ -18,7 +18,7 @@ def render_concept(concept: Concept) -> str:
         f"title: {yaml_str(concept.title)}",
         f"kind: {yaml_str(concept.kind)}",
         f"importance: {concept.importance}",
-        f"session_id: {yaml_str(concept.session_id)}",
+        f"session_ids: [{', '.join(yaml_str(s) for s in concept.session_ids)}]",
         f"sources: [{sources}]",
         f"tags: [{', '.join(yaml_str(t) for t in concept.tags)}]",
         "---",
@@ -44,10 +44,11 @@ def render_concept(concept: Concept) -> str:
 
 
 def write_concept(concept: Concept, root: Path) -> Path:
-    """Write `concept` to `<root>/docs/concepts/<slug>.md` if and return the path.
+    """Write `concept` to `<root>/docs/concepts/<slug>.md` and return the path.
 
-    Never overwrites: mode "x" raises `FileExistsError` if the note exists, so re-extracting
-    a session cannot duplicate or clobber a note.
+    Never overwrites: mode "x" raises `FileExistsError` if a note with the same slug exists.
+    That stops clobbering, not duplication: a re-extraction that words the title differently
+    writes a second note. Session-level idempotency comes from the queue's `done` step.
     """
     directory = root / "docs" / "concepts"
     directory.mkdir(parents=True, exist_ok=True)

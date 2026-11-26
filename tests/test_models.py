@@ -155,7 +155,7 @@ CONCEPT_GOOD: dict[str, Any] = {
     "explanation": "`.*?` stops at the first closing tag; `.*` runs to the last one.",
     "why_it_came_up": "Stripping system-reminder blocks from the digest.",
     "importance": 2,
-    "session_id": "abc-123",
+    "session_ids": ["abc-123"],
     "sources": [{"kind": "transcript", "ref": "abc-123:L40-48"}],
     "alternatives": [],
     "misconception": "Thought `.*` needed a match, so empty blocks would fail.",
@@ -173,6 +173,7 @@ def test_concept_round_trips() -> None:
         ({"importance": 4}, ("importance",)),
         ({"kind": "idea"}, ("kind",)),
         ({"sources": []}, ("sources",)),
+        ({"session_ids": []}, ("session_ids",)),
         ({"explanation": "x" * 601}, ("explanation",)),
     ],
 )
@@ -180,3 +181,9 @@ def test_concept_rejects(patch: dict[str, Any], loc: tuple[str, ...]) -> None:
     with pytest.raises(ValidationError) as exc:
         Concept.model_validate({**CONCEPT_GOOD, **patch})
     assert [e["loc"] for e in exc.value.errors()] == [loc]
+
+
+def test_concept_rejects_ref_from_another_session() -> None:
+    payload = {**CONCEPT_GOOD, "sources": [{"kind": "transcript", "ref": "xyz-999:L5"}]}
+    with pytest.raises(ValidationError, match="not from a session in session_ids"):
+        Concept.model_validate(payload)

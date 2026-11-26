@@ -110,8 +110,21 @@ class Concept(Strict):
     explanation: Annotated[str, Field(min_length=1, max_length=600)]
     why_it_came_up: NonEmpty
     importance: Literal[1, 2, 3]
-    session_id: NonEmpty
+    # A list: the same concept can come up again in later sessions.
+    session_ids: Annotated[list[NonEmpty], Field(min_length=1)]
     sources: Annotated[list[Source], Field(min_length=1)]
     alternatives: list[Option] = Field(default_factory=list)
     misconception: NonEmpty | None = None
     tags: list[NonEmpty] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def check_refs_cite_own_sessions(self) -> Self:
+        """Require every transcript ref to point into one of `session_ids`.
+
+        Catches a ref copied from the wrong session. It does not check that the line exists.
+        """
+        for source in self.sources:
+            session = source.ref.split(":")[0]
+            if source.kind == "transcript" and session not in self.session_ids:
+                raise ValueError(f"ref {source.ref!r} is not from a session in session_ids")
+        return self
