@@ -193,6 +193,8 @@ Each block: what to master, where to learn it, and a self-check. Do the **Founda
 
 Each step pairs one engineering concept with one LLM-tooling concept.
 
+> **Revised 2026-11-26.** Phase 0 now also captures concept notes (`DESIGN.md` §4). Steps 1–4 are done. The order after Step 4 is in `DESIGN.md` §10, "Revised plan": start capturing, an extraction spike, schema fixes, a notes CLI, then Steps 5–6. Step 5 must extract concept notes as well as decisions.
+
 ### Step 1 — Project setup + `Decision` model
 **Goal:** a uv project with ruff, mypy (strict, Pydantic plugin) and pytest, plus a Pydantic model that rejects bad ADR JSON from Claude before anything is written.
 
@@ -270,7 +272,7 @@ Plus a `validate` CLI: reads JSON (file or stdin), exits 0 and prints normalized
 - `<n>` is the JSONL line number. Citations (`<session_id>:L<n>`) depend on it.
 - Keep user and assistant text. Drop tool calls, tool results, thinking, meta entries and non-message entries.
 - Strip `<system-reminder>`-style tags from text.
-- Cap each message's length; mark truncation.
+- Cap each message's length as a guard (8,000 chars, head+tail); mark truncation.
 - Skip a malformed line (a partly written last line) instead of crashing.
 
 **Acceptance:** a fixture with every entry type → exact expected output; a truncation test. Measure size before and after on a real transcript.
