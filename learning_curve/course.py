@@ -20,11 +20,25 @@ def init(root: Path) -> None:
 
 
 def _read_queue(queue: Path) -> list[dict[str, str]]:
-    """Return queue entries in order; empty if the file doesn't exist yet."""
+    """Return queue entries in order; empty if the file doesn't exist yet.
+
+    Skips a line that is not valid JSON, e.g. a half-written append from a hook killed by
+    its timeout. Raising instead would block every later `session_end` and `queue` call.
+    """
     if not queue.is_file():
         return []
+    entries = []
     with queue.open(encoding="utf-8") as f:
-        return [json.loads(line) for line in f if line.strip()]
+        for line in f:
+            if not line.strip():
+                continue
+            try:
+                entries.append(json.loads(line))
+            except json.JSONDecodeError:
+                # shortcut: the skipped session stays un-queued, though its transcript is on
+                # disk; upgrade to logging the bad line if sessions go missing.
+                continue
+    return entries
 
 
 def _queue_path(course: Path) -> Path:
@@ -44,6 +58,8 @@ def pending(root: Path) -> list[str]:
 def done(root: Path, ids: Sequence[str]) -> None:
     """Remove `ids` from the queue. Unknown ids are ignored."""
     queue = _queue_path(root / _COURSE_DIR)
+    if not queue.is_file():
+        return  # nothing queued, and writing would fail if `.course/staged/` is missing
     keep = [e for e in _read_queue(queue) if e["session_id"] not in ids]
     # shortcut: rewrite is not atomic, a crash mid-write loses the queue; fine while
     # transcripts stay on disk, upgrade to write-temp-then-rename if that changes.
@@ -64,8 +80,10 @@ def session_end(payload: dict[str, str]) -> None:
     if session_id in _queued_ids(queue):
         return  # resumed session: transcript re-copied above, keep one entry
     entry = {"session_id": session_id, "ended_at": dt.datetime.now(dt.UTC).isoformat()}
+    # A half-written last line has no newline; start a fresh line so this entry survives.
+    torn = queue.is_file() and queue.stat().st_size > 0 and not queue.read_bytes().endswith(b"\n")
     with queue.open("a", encoding="utf-8") as f:
-        f.write(json.dumps(entry) + "\n")
+        f.write(("\n" if torn else "") + json.dumps(entry) + "\n")
 
 
 def main(argv: Sequence[str]) -> None:

@@ -83,6 +83,21 @@ def test_done_on_a_missing_queue_does_not_crash(tmp_path: Path) -> None:
     assert pending(tmp_path) == []
 
 
+def test_done_without_init_does_not_crash(tmp_path: Path) -> None:
+    done(tmp_path, ["a"])
+    assert not (tmp_path / ".course").exists()
+
+
+def test_corrupt_queue_line_is_skipped(tmp_path: Path) -> None:
+    init(tmp_path)
+    session_end(make_session(tmp_path, "a"))
+    queue = tmp_path / ".course" / "staged" / "queue.jsonl"
+    with queue.open("a", encoding="utf-8") as f:
+        f.write('{"session_id": "b", "ended')  # half-written append
+    session_end(make_session(tmp_path, "c"))
+    assert pending(tmp_path) == ["a", "c"]
+
+
 def test_main_session_end_reads_stdin_and_queues(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
