@@ -1,3 +1,5 @@
+"""`.course/` state: transcript copies and the queue of sessions awaiting extraction."""
+
 import argparse
 import datetime as dt
 import json
@@ -12,18 +14,24 @@ _SESSION_ID = re.compile(r"[\w-]+")
 
 
 def init(root: Path) -> None:
-    """Create `.course/` dirs and gitignore transcripts. Safe to re-run."""
+    """Opt `root` in to capture. Transcripts are gitignored, since they may hold secrets.
+
+    Safe to re-run.
+    """
     course = root / _COURSE_DIR
     (course / "transcripts").mkdir(parents=True, exist_ok=True)
     (course / "staged").mkdir(exist_ok=True)
     (course / ".gitignore").write_text("transcripts/\n", encoding="utf-8")
 
 
-def _read_queue(queue: Path) -> list[dict[str, str]]:
-    """Return queue entries in order; empty if the file doesn't exist yet.
+def _queue_path(course: Path) -> Path:
+    return course / "staged" / "queue.jsonl"
 
-    Skips a line that is not valid JSON, e.g. a half-written append from a hook killed by
-    its timeout. Raising instead would block every later `session_end` and `queue` call.
+
+def _read_queue(queue: Path) -> list[dict[str, str]]:
+    """Return queue entries in order; empty if there is no queue.
+
+    Invalid lines are skipped, so one torn append cannot block every later call.
     """
     if not queue.is_file():
         return []
@@ -35,23 +43,18 @@ def _read_queue(queue: Path) -> list[dict[str, str]]:
             try:
                 entries.append(json.loads(line))
             except json.JSONDecodeError:
-                # shortcut: the skipped session stays un-queued, though its transcript is on
-                # disk; upgrade to logging the bad line if sessions go missing.
+                # shortcut: that session stays unqueued, though its transcript is on disk;
+                # upgrade to logging the line if sessions go missing.
                 continue
     return entries
 
 
-def _queue_path(course: Path) -> Path:
-    return course / "staged" / "queue.jsonl"
-
-
 def _queued_ids(queue: Path) -> set[str]:
-    """Return the session ids already in `queue`."""
     return {e["session_id"] for e in _read_queue(queue)}
 
 
 def pending(root: Path) -> list[str]:
-    """Session ids waiting for extraction, oldest first."""
+    """Return the session ids awaiting extraction, oldest first."""
     return [e["session_id"] for e in _read_queue(_queue_path(root / _COURSE_DIR))]
 
 
@@ -59,40 +62,45 @@ def done(root: Path, ids: Sequence[str]) -> None:
     """Remove `ids` from the queue. Unknown ids are ignored."""
     queue = _queue_path(root / _COURSE_DIR)
     if not queue.is_file():
-        return  # nothing queued, and writing would fail if `.course/staged/` is missing
+        return
     keep = [e for e in _read_queue(queue) if e["session_id"] not in ids]
-    # shortcut: rewrite is not atomic, a crash mid-write loses the queue; fine while
-    # transcripts stay on disk, upgrade to write-temp-then-rename if that changes.
+    # shortcut: not atomic, so a crash mid-write loses the queue; acceptable while transcripts
+    # stay on disk, upgrade to write-temp-then-rename if that changes.
     queue.write_text("".join(json.dumps(e) + "\n" for e in keep), encoding="utf-8")
 
 
 def session_end(payload: dict[str, str]) -> None:
-    """Copy the transcript and queue the session. No-op unless `init` ran in `cwd`."""
+    """Copy the session's transcript and queue it once. No-op unless `cwd` ran `init`.
+
+    A resumed session re-copies its longer transcript but keeps its single queue entry.
+
+    Raises:
+        ValueError: `session_id` is not safe to use as a filename.
+    """
     course = Path(payload["cwd"]) / _COURSE_DIR
     if not course.is_dir():
-        return  # opt-in: projects that never ran init stay untouched
+        return
     session_id = payload["session_id"]
-    # session_id becomes a filename: reject "../x" before it reaches the filesystem.
-    if not _SESSION_ID.fullmatch(session_id):
+    if not _SESSION_ID.fullmatch(session_id):  # it becomes a filename: block "../x"
         raise ValueError(f"bad session_id {session_id!r}")
     shutil.copyfile(payload["transcript_path"], course / "transcripts" / f"{session_id}.jsonl")
     queue = _queue_path(course)
     if session_id in _queued_ids(queue):
-        return  # resumed session: transcript re-copied above, keep one entry
+        return
     entry = {"session_id": session_id, "ended_at": dt.datetime.now(dt.UTC).isoformat()}
-    # A half-written last line has no newline; start a fresh line so this entry survives.
+    # Start a fresh line after a torn append, or this entry would be corrupted too.
     torn = queue.is_file() and queue.stat().st_size > 0 and not queue.read_bytes().endswith(b"\n")
     with queue.open("a", encoding="utf-8") as f:
         f.write(("\n" if torn else "") + json.dumps(entry) + "\n")
 
 
 def main(argv: Sequence[str]) -> None:
-    """Run one subcommand (init, session-end, queue, done).
+    """Run one subcommand: `init`, `session-end`, `queue` or `done`.
 
-    Returns nothing: every failure is either swallowed on purpose (session-end, fail open)
-    or raised, so the process exit code comes from the exception or from argparse.
+    `session-end` never raises, so a broken hook cannot disturb session exit. Other failures
+    raise and set the exit code.
     """
-    parser = argparse.ArgumentParser(description="Manage the .course/session queue.")
+    parser = argparse.ArgumentParser(description="Manage the .course/ session queue.")
     parser.add_argument("--root", type=Path, default=Path.cwd(), help="project root")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("init")
@@ -102,10 +110,9 @@ def main(argv: Sequence[str]) -> None:
     args = parser.parse_args(argv)
 
     if args.command == "session-end":
-        # Fail open: a broken hook must never block or break session exit.
         try:
             session_end(json.load(sys.stdin))
-        except Exception as e:  # deliberate catch-all: see the fail-open comment above
+        except Exception as e:  # fail open: log and exit 0
             stamp = dt.datetime.now(dt.UTC).isoformat()
             print(
                 f"{stamp} learning-curve: session-end failed: {type(e).__name__}: {e}",

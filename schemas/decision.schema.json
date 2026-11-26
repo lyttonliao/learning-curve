@@ -2,7 +2,7 @@
   "$defs": {
     "Option": {
       "additionalProperties": false,
-      "description": "One alternative that was weighed before choosing.",
+      "description": "An alternative that was weighed.",
       "properties": {
         "name": {
           "minLength": 1,
@@ -24,7 +24,7 @@
     },
     "Source": {
       "additionalProperties": false,
-      "description": "Where the evidence for a decision lives.\n\n`kind` picks the format `ref` must have: a transcript line range, a pull\nrequest, or one or more commit SHAs (when the decision was inferred).",
+      "description": "Evidence for a record.\n\n`ref` format depends on `kind`: `<session_id>:L<n>[-<m>]` for a transcript, `#42` or a URL\nfor a pull request, one or more commit SHAs when inferred.",
       "properties": {
         "kind": {
           "enum": [
@@ -50,7 +50,7 @@
     }
   },
   "additionalProperties": false,
-  "description": "One architecture decision record (ADR), validated before anything is written.\n\nClaude produces this as JSON, so the model is the trust boundary: nothing\nreaches disk unless it passes every rule below.",
+  "description": "An architecture decision record (ADR).",
   "properties": {
     "title": {
       "minLength": 1,

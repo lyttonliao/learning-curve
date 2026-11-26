@@ -1,3 +1,5 @@
+"""Write validated concepts as Markdown notes in `docs/concepts/`."""
+
 from pathlib import Path
 
 from learning_curve.adr import slugify, yaml_str
@@ -5,11 +7,7 @@ from learning_curve.models import Concept
 
 
 def render_concept(concept: Concept) -> str:
-    """Render `concept` as a Markdown note with YAML frontmatter.
-
-    Frontmatter strings go through `yaml_str`, like the ADR renderer, so `:` or `"` in a title
-    cannot break the YAML. Misconception and alternatives are omitted when absent.
-    """
+    """Render `concept` as a Markdown note with YAML frontmatter."""
     sources = ", ".join(
         f"{{kind: {yaml_str(s.kind)}, ref: {yaml_str(s.ref)}}}" for s in concept.sources
     )
@@ -46,9 +44,10 @@ def render_concept(concept: Concept) -> str:
 def write_concept(concept: Concept, root: Path) -> Path:
     """Write `concept` to `<root>/docs/concepts/<slug>.md` and return the path.
 
-    Never overwrites: mode "x" raises `FileExistsError` if a note with the same slug exists.
-    That stops clobbering, not duplication: a re-extraction that words the title differently
-    writes a second note. Session-level idempotency comes from the queue's `done` step.
+    Prevents overwriting, not duplication: a reworded title writes a second note.
+
+    Raises:
+        FileExistsError: a note with the same slug exists.
     """
     directory = root / "docs" / "concepts"
     directory.mkdir(parents=True, exist_ok=True)
