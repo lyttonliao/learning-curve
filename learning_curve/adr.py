@@ -31,12 +31,13 @@ def next_number(directory: Path) -> int:
 def slugify(title: str) -> str:
     """Turn a title into a lowercase, hyphen-separated filename slug (max 60 chars).
 
-    Falls back to "decision" when nothing usable is left, e.g. for "!!!".
+    Falls back to "untitled" when nothing usable is left, e.g. for "!!!". Shared by ADRs and
+    concept notes, so the fallback names neither.
     """
     # shortcut: ASCII only, so accented letters are dropped; upgrade if non-English titles matter.
     # Strip again after the cut: it can leave a trailing hyphen.
     slug = _NON_ALNUM.sub("-", title.lower()).strip("-")[:_SLUG_MAX].strip("-")
-    return slug or "decision"
+    return slug or "untitled"
 
 
 def yaml_str(text: str) -> str:
