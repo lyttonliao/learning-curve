@@ -25,7 +25,7 @@ def test_init_creates_dirs_and_gitignore_and_is_rerunnable(tmp_path: Path) -> No
     init(tmp_path)
     assert (tmp_path / ".course" / "transcripts").is_dir()
     assert (tmp_path / ".course" / "staged").is_dir()
-    assert (tmp_path / ".course" / ".gitignore").read_text() == "transcripts/\n"
+    assert (tmp_path / ".course" / ".gitignore").read_text() == "transcripts/\nstaged/queue.jsonl\n"
 
 
 def test_session_end_copies_transcript_and_queues(tmp_path: Path) -> None:

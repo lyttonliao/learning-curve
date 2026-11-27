@@ -21,7 +21,7 @@ def init(root: Path) -> None:
     course = root / _COURSE_DIR
     (course / "transcripts").mkdir(parents=True, exist_ok=True)
     (course / "staged").mkdir(exist_ok=True)
-    (course / ".gitignore").write_text("transcripts/\n", encoding="utf-8")
+    (course / ".gitignore").write_text("transcripts/\nstaged/queue.jsonl\n", encoding="utf-8")
 
 
 def _queue_path(course: Path) -> Path:
