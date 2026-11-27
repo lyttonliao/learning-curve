@@ -64,7 +64,8 @@ Two kinds of record. Both are validated before anything is written, and both cit
 | `title`, `kind` | `concept` \| `tradeoff` \| `debug` |
 | `explanation` | Just enough detail to write a quiz from (max 600 chars, to tune) |
 | `why_it_came_up` | The situation that surfaced it |
-| `importance` | `1` \| `2` \| `3`, assigned by the extractor against a rubric of checkable facts: the dev was corrected, a rejected alternative existed, it touches several files, it recurred |
+| `importance` | `1`–`4`, computed in code from the extractor's rubric answers (see Importance rubric below), never graded by the LLM directly |
+| `signals` | Cited learning signals, kept apart from importance: the dev stated something wrong and was corrected, a rejected alternative existed, it recurred. They feed quiz priority |
 | `session_ids` | Sessions it came up in (a list: concepts recur) |
 | `sources` | At least one; transcript refs must point into `session_ids` |
 | `alternatives` | Optional |
@@ -72,6 +73,33 @@ Two kinds of record. Both are validated before anything is written, and both cit
 | `tags` | Attach the note to a chapter section |
 
 - **Importance** only picks which notes get quizzed when notes outnumber question slots. Structure comes from chapters and sections (§3). A "review all" mode lists every note in section order.
+
+#### Importance rubric (decided 2026-11-27, from the step 2 spike)
+
+Importance measures what the dev needs to know; signals measure where they were weak. Summing the two failed in the spike: `requires-python` scored high on signals alone, and the app's core technique (validated structured output, errors returned for retry) scored lowest because the dev never got it wrong.
+
+The extractor answers three yes/no questions per note, each with a one-line reason written *before* the answer (JSON keys generate in order, so the model reasons first). Code applies them in order, first yes wins:
+
+| Level | Question | Not knowing it means |
+|---|---|---|
+| 4 core | Is it what the app does, or why it is built this way? | You can't explain the app |
+| 3 mechanism | Does the app's code depend on how this works? | You can't change or debug that code |
+| 2 pitfall | Would not knowing it let a bug or bad pattern through review? | AI-written mistakes get past you |
+| 1 context | None of the above | Nothing is blocked |
+
+Level 3 is the supporting-technology layer that devs relying on AI tend to skip; level 2 is the review skill they need most.
+
+- **Why yes/no answers, not a 1–4 grade:** LLM judges agree more on narrow binary checks than on scales, the reasons make each level auditable, and reordering levels or reweighting quiz priority is a code change with no new LLM call. Code-only rules can't tell core from mechanism; a separate grading call costs about 40% more tokens.
+- **Accuracy levers in the prompt:** the app's purpose (§1–2, about 300 tokens; "core" is undefined without it), one real example per level from the spike, reason before answer, enum fields.
+- **Quiz priority** = f(importance, signals), computed in code. Example: importance 2 with a misconception ranks above a plain 2.
+- **Golden set:** the spike's 16 hand-rated notes (session `986bed3c`), confirmed by the dev:
+  - 4: validate LLM output at a trust boundary and return errors as JSON
+  - 3: cross-field model validators; nested `Source` over an encoded string; `after` vs `before` validators; `Annotated` aliases; model validator errors report at model level
+  - 2: mypy checks annotations; `tmp_path`; regex dispatch table with `fullmatch`; one validator per rule; "required only when" has two directions; reference by name; field `date` shadows the type
+  - 1: `uv.lock` vs `pyproject.toml`; `requires-python`; `.gitignore` hiding committed files
+
+  Score the extractor by agreement with these levels; grade one session twice to measure drift. Add the separate grading call only if agreement is poor.
+- **Attribution:** a correction counts as a signal only for whoever made the mistake. The assistant correcting itself is not "the dev was corrected", and "incomplete" is not "wrong".
 - **Idempotency:** per session through the queue (`course done`). Per note, the writer never overwrites a slug. A concept seen again should update its note (`updates: <slug>`), not add one; not built yet.
 
 ## 5. Quizzes
@@ -177,8 +205,14 @@ Out of scope: chapters, backfill, quizzes, grader, gate, scheduler, evals, `.cou
 Built: `Decision` + `validate`, ADR writer, `course` queue + `SessionEnd` hook config, transcript digest, `Concept` model + note writer. Order from here:
 
 1. **Start capturing.** Done 2026-11-27: `course init` run here, `SessionEnd` hook registered in `.claude/settings.local.json` (via `$CLAUDE_PROJECT_DIR`, since the plugin is not installed; remove at step 6), and the 6 existing transcripts backfilled. Backfill only reaches sessions inside `cleanupPeriodDays` (default 30); a `course backfill` subcommand is a candidate for step 4 or 6.
-2. **Extraction spike, by hand.** Prompt + one real digest → `list[Concept]` → validate → judge the notes. Tests the schema (600-char cap, `importance`, `kind`s, notes per session) before more is built on it.
-3. **Schema fixes from the spike.** Check each transcript `L<n>` exists in the digest; the `updates: <slug>` path for a recurring concept; a notes-per-session cap.
+2. **Extraction spike, by hand.** Done 2026-11-27 on session `986bed3c` (31,345-char digest): 17 notes, all valid against `Concept`. Findings:
+   - **Citations:** a digest `L<n>` marks a whole message, up to about 60 lines. The first pass cited 18 refs that were well-formed but pointed at digest file lines, not entry markers, and the schema accepted all 18. Format checks are not enough.
+   - **Count:** 17 notes from one mid-size session, so the placeholder cap of 15 is tight.
+   - **`explanation`:** 186–473 chars; the 600 cap never bound. Keep it.
+   - **`kind`:** 11 concept, 3 tradeoff, 3 debug. Plausible.
+   - **Importance:** the summed-facts rubric conflated importance with weakness; replaced by the §4 Importance rubric.
+   - **Duplicates:** "merge near-duplicates" is too vague. Rule: merge two notes only when one quiz question would test both (the `fullmatch` note merged into the regex dispatch note; three validator notes stay apart).
+3. **Schema fixes from the spike.** Check each transcript `L<n>` is an entry marker in the digest; replace `importance` with the three rubric answers plus computed level, and add `signals`; the merge rule and rubric examples in the prompt; the `updates: <slug>` path for a recurring concept; a notes-per-session cap above 15.
 4. **Notes CLI** taking a list of concepts (generic payload loader shared with `validate` and `adr`).
 5. **Skills** (guide Step 5), rewritten to extract both kinds.
 6. **Plugin manifest + live test** (guide Step 6).
@@ -215,6 +249,6 @@ Gaps noticed while writing this. Not decided.
 14. **Draining trigger.** Nothing prompts the user to run the review, so the queue can sit unread. Candidate: a `SessionStart` hook that prints one line ("N sessions staged — run /learning-curve") when the queue is non-empty.
 15. **`/decision` citations.** Manual decisions can cite only the whole session (`<session_id>:L1`), not the exact line. `${CLAUDE_SESSION_ID}` substitution in skills is unverified.
 16. **Concept merging.** How does the extractor match a new concept to an existing note: by title, by tags, or by showing it the list of note titles?
-17. **Notes per session.** What cap (15 is a placeholder), and is the 600-char `explanation` enough to write a quiz from?
-18. **Quiz selection.** When notes outnumber questions: by `importance`, then recency? Is the 1–3 rubric stable across runs?
+17. **Notes per session.** What cap? 15 was already exceeded by one 31k-char session. The 600-char `explanation` held every spike note.
+18. **Quiz selection.** When notes outnumber questions: the quiz priority function (§4) is decided in shape, not in weights. Is the rubric stable across runs? Measure against the golden set.
 19. **Quiz config.** Question count, and pass thresholds per concept, chapter and quiz. Deferred until the note schema settles.
