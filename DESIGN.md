@@ -176,7 +176,7 @@ Out of scope: chapters, backfill, quizzes, grader, gate, scheduler, evals, `.cou
 
 Built: `Decision` + `validate`, ADR writer, `course` queue + `SessionEnd` hook config, transcript digest, `Concept` model + note writer. Order from here:
 
-1. **Start capturing.** Nothing is staged yet: `.course/` is not initialised and the hook has never run. The oldest transcript (Nov 18) expires around Dec 18. Run `course init` here and register the `SessionEnd` hook for this project.
+1. **Start capturing.** Done 2026-11-27: `course init` run here, `SessionEnd` hook registered in `.claude/settings.local.json` (via `$CLAUDE_PROJECT_DIR`, since the plugin is not installed; remove at step 6), and the 6 existing transcripts backfilled. Backfill only reaches sessions inside `cleanupPeriodDays` (default 30); a `course backfill` subcommand is a candidate for step 4 or 6.
 2. **Extraction spike, by hand.** Prompt + one real digest → `list[Concept]` → validate → judge the notes. Tests the schema (600-char cap, `importance`, `kind`s, notes per session) before more is built on it.
 3. **Schema fixes from the spike.** Check each transcript `L<n>` exists in the digest; the `updates: <slug>` path for a recurring concept; a notes-per-session cap.
 4. **Notes CLI** taking a list of concepts (generic payload loader shared with `validate` and `adr`).
